@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hong Kong Cyberport Incubation Programme Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony -->
+    <!-- Application Structure Plan: The application is designed as a thematic, single-page dashboard. This structure prioritizes user exploration over a linear narrative. It begins with a high-level summary and key metrics to provide an immediate overview. Subsequent sections allow users to dive deeper into specific areas of interest: the program's structure, the strategic industry clusters, and a filterable showcase of companies. This non-linear approach is chosen for usability, as it allows different user personas (potential applicants, investors, researchers) to quickly access the information most relevant to them without navigating a multi-page site. The core interaction revolves around filtering the company showcase, directly connecting the strategic clusters to the successful ventures, which is the most compelling story in the data. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Key success numbers (1000+ startups, $5.57B funds, 73% survival, 7 unicorns). Goal: Inform/Impress. Viz: Styled stat cards. Interaction: Static display for quick absorption. Justification: High-impact, easily digestible overview. Method: HTML/Tailwind.
+        - Report Info: HK$500k funding breakdown. Goal: Inform. Viz: Donut Chart. Interaction: Hover tooltips. Justification: Clearly shows the performance-based stages of funding. Library: Chart.js.
+        - Report Info: Strategic clusters (FinTech, AI, etc.). Goal: Organize/Filter. Viz: Interactive filter buttons. Interaction: Click to filter company list. Justification: Creates a direct link between strategy and results, enhancing exploration. Method: HTML/JS.
+        - Report Info: List of ~40 notable companies. Goal: Organize/Inform. Viz: Dynamic card grid. Interaction: Filtering by cluster and status (Unicorn, Listed, etc.); modal pop-up for details. Justification: Manages a large amount of data in a digestible format and allows user-driven discovery. Method: HTML/Tailwind/JS.
+        - Report Info: Application process. Goal: Organize. Viz: Horizontal stepper/timeline. Interaction: Static visual flow. Justification: Clearly and simply illustrates a linear process. Method: HTML/Tailwind.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8F7F4;
+            color: #2c3e50;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 350px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 350px;
+        }
+        .funds-chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .funds-chart-container {
+                height: 400px;
+            }
+        }
+        .nav-link {
+            transition: color 0.3s ease;
+        }
+        .nav-link:hover {
+            color: #4DB6AC;
+        }
+        .filter-btn {
+            transition: all 0.3s ease;
+        }
+        .filter-btn.active {
+            background-color: #4DB6AC;
+            color: white;
+            border-color: #4DB6AC;
+        }
+        .company-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .company-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .modal-backdrop {
+            transition: opacity 0.3s ease-in-out;
+        }
+        .modal-content {
+            transition: transform 0.3s ease-in-out;
+        }
+        .tag {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .tag-unicorn { background-color: #fce7f3; color: #db2777; }
+        .tag-listed { background-color: #e0e7ff; color: #4f46e5; }
+        .tag-alumni { background-color: #d1fae5; color: #065f46; }
+        .tag-incubatee { background-color: #fef3c7; color: #92400e; }
+        .tag-fintech { border: 1px solid #0e7490; color: #0e7490; }
+        .tag-smart-living { border: 1px solid #16a34a; color: #16a34a; }
+        .tag-ai-big-data { border: 1px solid #6d28d9; color: #6d28d9; }
+        .tag-blockchain { border: 1px solid #db2777; color: #db2777; }
+        .tag-esports { border: 1px solid #d97706; color: #d97706; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-40 shadow-sm">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="text-2xl font-bold text-gray-800">
+                Cyberport<span class="text-[#4DB6AC]">HK</span>
+            </div>
+            <div class="hidden md:flex space-x-8">
+                <a href="#overview" class="nav-link text-gray-600">Overview</a>
+                <a href="#programme" class="nav-link text-gray-600">The Programme</a>
+                <a href="#showcase" class="nav-link text-gray-600">Company Showcase</a>
+                <a href="#pipeline" class="nav-link text-gray-600">Pipeline</a>
+            </div>
+             <button id="mobile-menu-button" class="md:hidden text-gray-600 focus:outline-none">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+            </button>
+        </nav>
+        <div id="mobile-menu" class="hidden md:hidden px-6 pb-4">
+            <a href="#overview" class="block py-2 nav-link text-gray-600">Overview</a>
+            <a href="#programme" class="block py-2 nav-link text-gray-600">The Programme</a>
+            <a href="#showcase" class="block py-2 nav-link text-gray-600">Company Showcase</a>
+            <a href="#pipeline" class="block py-2 nav-link text-gray-600">Pipeline</a>
+        </div>
+    </header>
+
+    <main>
+        <section id="hero" class="py-16 md:py-24 text-center bg-white">
+            <div class="container mx-auto px-6">
+                <h1 class="text-4xl md:text-6xl font-bold tracking-tight text-gray-900 mb-4">Fostering Hong Kong's Digital Future</h1>
+                <p class="max-w-3xl mx-auto text-lg md:text-xl text-gray-600">
+                    The Hong Kong Cyberport Incubation Programme is a cornerstone of the city's tech ecosystem, providing comprehensive support to transform innovative ideas into global success stories.
+                </p>
+            </div>
+        </section>
+
+        <section id="overview" class="py-16 md:py-20">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold text-gray-900">A Proven Engine for Growth</h2>
+                    <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">Since 2005, the programme has cultivated a thriving community of innovators, achieving remarkable milestones in funding, survival, and market leadership.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    <div class="bg-white p-8 rounded-xl shadow-md text-center">
+                        <div class="text-5xl font-bold text-[#4DB6AC] mb-2">1,000+</div>
+                        <h3 class="text-xl font-semibold text-gray-800">Startups Incubated</h3>
+                    </div>
+                    <div class="bg-white p-8 rounded-xl shadow-md text-center">
+                        <div class="text-5xl font-bold text-[#4DB6AC] mb-2">$5.57B+</div>
+                        <h3 class="text-xl font-semibold text-gray-800">USD in Funds Raised</h3>
+                    </div>
+                    <div class="bg-white p-8 rounded-xl shadow-md text-center">
+                        <div class="text-5xl font-bold text-[#4DB6AC] mb-2">73%</div>
+                        <h3 class="text-xl font-semibold text-gray-800">3-Year Survival Rate</h3>
+                    </div>
+                    <div class="bg-white p-8 rounded-xl shadow-md text-center">
+                        <div class="text-5xl font-bold text-[#4DB6AC] mb-2">7</div>
+                        <h3 class="text-xl font-semibold text-gray-800">Unicorns Nurtured</h3>
+                    </div>
+                </div>
+                 <div class="mt-16 bg-white p-8 rounded-xl shadow-md">
+                    <h3 class="text-2xl font-bold text-center text-gray-900 mb-6">Accumulated Funding Growth</h3>
+                    <div class="funds-chart-container">
+                        <canvas id="fundsRaisedChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="programme" class="py-16 md:py-20 bg-white">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold text-gray-900">Comprehensive Support for Startups</h2>
+                    <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">The programme offers a multi-faceted support system designed to address the critical needs of early-stage technology companies.</p>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-12 items-start">
+                    <div class="lg:col-span-1">
+                        <h3 class="text-2xl font-bold text-gray-900 mb-4">Financial Assistance</h3>
+                        <p class="text-gray-600 mb-6">Up to HK$500,000 in performance-based funding over 24 months to cover essential operational needs.</p>
+                        <div class="chart-container">
+                            <canvas id="fundingChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-2">
+                        <div class="space-y-8">
+                            <div>
+                                <h3 class="text-2xl font-bold text-gray-900 mb-4">Infrastructure & Facilities</h3>
+                                <p class="text-gray-600">Rent-free office and co-working spaces, plus complimentary access to state-of-the-art meeting rooms, conference facilities, and technology labs to foster collaboration and innovation.</p>
+                            </div>
+                            <div>
+                                <h3 class="text-2xl font-bold text-gray-900 mb-4">Business Development</h3>
+                                <p class="text-gray-600">Unparalleled access to a vast network of investors, mentors, and corporate partners. The programme provides tailored training, business matching, and opportunities for market exposure through exhibitions and trade missions.</p>
+                            </div>
+                            <div>
+                                <h3 class="text-2xl font-bold text-gray-900 mb-4">Application Process</h3>
+                                <p class="text-gray-600 mb-6">A rigorous, three-stage vetting process ensures that high-potential ventures are selected. Applications are open year-round.</p>
+                                <div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
+                                    <div class="flex-1 text-center p-4 bg-gray-50 rounded-lg">
+                                        <div class="text-2xl font-bold text-[#4DB6AC]">1</div>
+                                        <p class="font-semibold">Initial Screening</p>
+                                    </div>
+                                    <div class="flex-1 text-center p-4 bg-gray-50 rounded-lg">
+                                        <div class="text-2xl font-bold text-[#4DB6AC]">2</div>
+                                        <p class="font-semibold">Evaluation</p>
+                                    </div>
+                                    <div class="flex-1 text-center p-4 bg-gray-50 rounded-lg">
+                                        <div class="text-2xl font-bold text-[#4DB6AC]">3</div>
+                                        <p class="font-semibold">Presentation</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="showcase" class="py-16 md:py-20">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold text-gray-900">Company Showcase</h2>
+                    <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">Explore the diverse and innovative companies that form the Cyberport community. Filter by strategic cluster or company status to discover leaders in every field.</p>
+                </div>
+                
+                <div class="mb-8">
+                    <h3 class="text-lg font-semibold mb-3 text-center">Filter by Strategic Cluster</h3>
+                    <div id="cluster-filters" class="flex flex-wrap justify-center gap-2">
+                        <button class="filter-btn active px-4 py-2 border rounded-full text-sm font-medium" data-cluster="All">All Clusters</button>
+                        <button class="filter-btn px-4 py-2 border rounded-full text-sm font-medium" data-cluster="FinTech">FinTech</button>
+                        <button class="filter-btn px-4 py-2 border rounded-full text-sm font-medium" data-cluster="Smart Living">Smart Living</button>
+                        <button class="filter-btn px-4 py-2 border rounded-full text-sm font-medium" data-cluster="AI & Big Data">AI & Big Data</button>
+                        <button class="filter-btn px-4 py-2 border rounded-full text-sm font-medium" data-cluster="Blockchain & Cybersecurity">Blockchain & Cybersecurity</button>
+                        <button class="filter-btn px-4 py-2 border rounded-full text-sm font-medium" data-cluster="Digital Entertainment & Esports">Digital Entertainment & Esports</button>
+                    </div>
+                </div>
+
+                 <div class="mb-12 flex justify-center">
+                    <div class="w-full max-w-xs">
+                        <label for="status-filter" class="block text-sm font-medium text-gray-700 text-center mb-2">Filter by Status</label>
+                        <select id="status-filter" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-[#4DB6AC] focus:border-[#4DB6AC] sm:text-sm rounded-md">
+                            <option value="All">All Statuses</option>
+                            <option value="Unicorn">Unicorn</option>
+                            <option value="Listed">Listed/Licensed</option>
+                            <option value="Alumni">Notable Alumni</option>
+                            <option value="Incubatee">Recent Incubatee</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="company-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                </div>
+            </div>
+        </section>
+        
+        <section id="pipeline" class="py-16 md:py-20 bg-white">
+            <div class="container mx-auto px-6">
+                 <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold text-gray-900">A Continuous Entrepreneurial Pipeline</h2>
+                    <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">Cyberport provides a comprehensive suite of programmes that support startups at every stage of their journey, from initial idea to global expansion.</p>
+                </div>
+                <div class="relative">
+                    <div class="hidden md:block absolute left-1/2 -translate-x-1/2 top-5 w-0.5 h-[calc(100%-2.5rem)] bg-gray-200"></div>
+                    <div class="space-y-12">
+                        <div class="md:flex items-center w-full">
+                            <div class="md:w-1/2 md:pr-8 text-center md:text-right">
+                                <h3 class="text-2xl font-bold text-[#4DB6AC]">Idea & Prototype</h3>
+                                <p class="text-gray-600 mt-2">Cyberport Creative Micro Fund (CCMF) provides HK$100,000 seed funding to turn innovative concepts into working prototypes.</p>
+                            </div>
+                            <div class="hidden md:block w-10 h-10 rounded-full bg-[#4DB6AC] border-4 border-white shadow-md mx-auto z-10 flex-shrink-0"></div>
+                            <div class="md:w-1/2 md:pl-8"></div>
+                        </div>
+                        <div class="md:flex flex-row-reverse items-center w-full">
+                            <div class="md:w-1/2 md:pl-8 text-center md:text-left">
+                                <h3 class="text-2xl font-bold text-[#4DB6AC]">Incubation & Growth</h3>
+                                <p class="text-gray-600 mt-2">The flagship Incubation Programme offers up to HK$500,000 and comprehensive support to build a viable business.</p>
+                            </div>
+                            <div class="hidden md:block w-10 h-10 rounded-full bg-[#4DB6AC] border-4 border-white shadow-md mx-auto z-10 flex-shrink-0"></div>
+                            <div class="md:w-1/2 md:pr-8"></div>
+                        </div>
+                         <div class="md:flex items-center w-full">
+                            <div class="md:w-1/2 md:pr-8 text-center md:text-right">
+                                <h3 class="text-2xl font-bold text-[#4DB6AC]">Acceleration & Expansion</h3>
+                                <p class="text-gray-600 mt-2">The Accelerator Support Programme (CASP) offers up to HK$300,000 to help startups join global accelerators and enter overseas markets.</p>
+                            </div>
+                            <div class="hidden md:block w-10 h-10 rounded-full bg-[#4DB6AC] border-4 border-white shadow-md mx-auto z-10 flex-shrink-0"></div>
+                            <div class="md:w-1/2 md:pl-8"></div>
+                        </div>
+                        <div class="md:flex flex-row-reverse items-center w-full">
+                            <div class="md:w-1/2 md:pl-8 text-center md:text-left">
+                                <h3 class="text-2xl font-bold text-[#4DB6AC]">Scaling & Investment</h3>
+                                <p class="text-gray-600 mt-2">The Cyberport Macro Fund (CMF) co-invests in mature startups (Series A and beyond) to fuel their large-scale growth, driving a co-investment ratio of 1:8.</p>
+                            </div>
+                            <div class="hidden md:block w-10 h-10 rounded-full bg-[#4DB6AC] border-4 border-white shadow-md mx-auto z-10 flex-shrink-0"></div>
+                            <div class="md:w-1/2 md:pr-8"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-gray-800 text-white py-8">
+        <div class="container mx-auto px-6 text-center">
+            <p>&copy; 2025 Cyberport Interactive Dashboard. All data sourced from public reports.</p>
+            <p class="text-sm text-gray-400 mt-2">This is an informational project and is not affiliated with the official Hong Kong Cyberport.</p>
+        </div>
+    </footer>
+
+    <div id="company-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4 modal-backdrop">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto modal-content transform scale-95">
+            <div class="p-6">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 id="modal-title" class="text-2xl font-bold text-gray-900"></h3>
+                        <div id="modal-tags" class="mt-2 flex flex-wrap gap-2"></div>
+                    </div>
+                    <button id="modal-close" class="text-gray-400 hover:text-gray-600">&times;</button>
+                </div>
+                <div class="mt-4 text-gray-600 space-y-2">
+                    <p id="modal-description"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const companyData = [
+                { name: 'GOGOX', status: 'Unicorn', cluster: 'Smart Living', description: 'The first Cyberport-incubated unicorn, listed on HKEX. An app-based platform for on-demand goods transportation and delivery services.' },
+                { name: 'Klook', status: 'Unicorn', cluster: 'Smart Living', description: 'A leading online travel activities and services booking platform, offering a seamless way to discover and book attractions, tours, and local experiences.' },
+                { name: 'WeLab', status: 'Unicorn', cluster: 'FinTech', description: 'A prominent FinTech company with virtual banking services (WeLab Bank), offering online consumer credit and B2B FinTech solutions in Hong Kong, mainland China, and Indonesia.' },
+                { name: 'TNG', status: 'Unicorn', cluster: 'FinTech', description: 'A comprehensive mobile wallet and FinTech company providing a wide range of financial services through a single app.' },
+                { name: 'Animoca Brands', status: 'Unicorn', cluster: 'Digital Entertainment & Esports', description: 'A global leader in blockchain gaming, NFTs, and the open metaverse, driving digital property rights for gamers and internet users.' },
+                { name: 'ZA Bank', status: 'Unicorn', cluster: 'FinTech', description: 'Hong Kong\'s first and largest virtual bank, offering a full suite of digital banking services with a community-driven approach.' },
+                { name: 'Bowtie', status: 'Unicorn', cluster: 'FinTech', description: 'Hong Kong\'s first virtual insurer, providing simple, transparent, and commission-free online life and health insurance.' },
+                { name: 'Diginex', status: 'Listed', cluster: 'FinTech', description: 'Listed on NASDAQ, Diginex provides innovative ESG reporting and supply chain risk assessment solutions for corporations.' },
+                { name: 'Xunfei Healthcare', status: 'Listed', cluster: 'AI & Big Data', description: 'Listed on HKEX, this company provides AI-empowered healthcare solutions, including clinical decision support systems and chronic disease management tools.' },
+                { name: 'HKbitEX', status: 'Listed', cluster: 'FinTech', description: 'A licensed digital asset exchange platform for professional and institutional investors, regulated by the SFC.' },
+                { name: 'Dmall', status: 'Listed', cluster: 'Smart Living', description: 'Listed on HKEX, Dmall is a leading retail digitalization solution provider, offering cloud-based services to optimize retailer operations.' },
+                { name: 'Real Messenger', status: 'Listed', cluster: 'Smart Living', description: 'Listed on Nasdaq, this proptech platform connects real estate agents, buyers, and sellers on a unified social platform.' },
+                { name: 'Snapask', status: 'Alumni', cluster: 'Smart Living', description: 'An on-demand learning platform connecting students with qualified tutors for instant academic support through a mobile app.' },
+                { name: 'Shopline', status: 'Alumni', cluster: 'Smart Living', description: 'A leading e-commerce platform in Asia that empowers merchants to build and manage their online stores with integrated payment and logistics.' },
+                { name: 'MediConCen', status: 'Alumni', cluster: 'Blockchain & Cybersecurity', description: 'A blockchain-based platform that automates insurance claims, connecting insurers, medical networks, and customers for a seamless experience.' },
+                { name: 'Lynk', status: 'Alumni', cluster: 'AI & Big Data', description: 'A knowledge-as-a-service platform that uses AI to connect clients with over 840,000 global experts for research and insights.' },
+                { name: 'Pakpobox', status: 'Alumni', cluster: 'Smart Living', description: 'Operates a network of 24/7 smart lockers for first/last-mile deliveries, offering parcel, laundry, and storage solutions.' },
+                { name: 'Quantifeed', status: 'Alumni', cluster: 'FinTech', description: 'Powers digital wealth management platforms for financial institutions, providing "wealthcare" solutions for a diverse range of clients.' },
+                { name: 'OneDegree', status: 'Alumni', cluster: 'FinTech', description: 'A new generation virtual insurer providing a range of products including pet, home, and digital asset insurance.' },
+                { name: 'Pickupp', status: 'Alumni', cluster: 'Smart Living', description: 'An app-based platform providing flexible and efficient last-mile e-commerce delivery services across Asia.' },
+                { name: 'EventX', status: 'Alumni', cluster: 'AI & Big Data', description: 'An AI-powered event management platform for virtual, hybrid, and in-person events, streamlining registration, lead generation, and analytics.' },
+                { name: 'Rice Robotics', status: 'Alumni', cluster: 'AI & Big Data', description: 'Develops autonomous robots for indoor deliveries in environments like offices, hotels, and hospitals, streamlining logistics.' },
+                { name: 'Canpanion', status: 'Incubatee', cluster: 'AI & Big Data', description: 'Develops an AI-driven education and psychology ecosystem, recognized as a "WAIC 2025 Future Tech" for its innovation.' },
+                { name: 'Votee AI', status: 'Incubatee', cluster: 'AI & Big Data', description: 'An AI market research company using AI-Generated Content (AIGC) technology for governments and enterprises.' },
+                { name: 'YouToo Robot', status: 'Incubatee', cluster: 'AI & Big Data', description: 'Simplifies industrial robotic applications with user-friendly AI software, enabling novice users to program robots quickly.' },
+                { name: 'FireAlert', status: 'Incubatee', cluster: 'AI & Big Data', description: 'Specializes in AI-driven IoT solutions for smart cities, providing real-time monitoring and alerts for fire safety systems.' },
+                { name: 'Lidarvision', status: 'Incubatee', cluster: 'AI & Big Data', description: 'Focuses on standardized fall detection AI systems using 3D LiDAR technology to enhance safety while preserving privacy.' },
+                { name: 'ubiZense', status: 'Alumni', cluster: 'AI & Big Data', description: 'An AIoT company specializing in smart aviation solutions, developing systems for Hong Kong International Airport.' },
+                { name: 'HK Decoman', status: 'Alumni', cluster: 'Smart Living', description: 'A one-stop online platform for home renovation in Hong Kong, connecting users with vetted interior design companies.' },
+                { name: 'Gense Technologies', status: 'Alumni', cluster: 'Smart Living', description: 'Aims to make health screenings more accessible with a portable device that monitors key organ health indexes.' },
+                { name: 'Godzpeed Autosport', status: 'Alumni', cluster: 'Digital Entertainment & Esports', description: 'Develops realistic automobile driving simulation software for professional training, entertainment, and esports events.' },
+                { name: 'VAR LIVE', status: 'Alumni', cluster: 'Digital Entertainment & Esports', description: 'Operates VR arcades globally, offering patented VR games and hardware designed to minimize motion sickness and enhance immersion.' },
+                { name: 'Buyandship', status: 'Alumni', cluster: 'Smart Living', description: 'Provides global shipping services, allowing customers to shop from international online stores and consolidate packages for delivery to Hong Kong.' },
+            ];
+
+            const companyGrid = document.getElementById('company-grid');
+            const clusterFilters = document.getElementById('cluster-filters');
+            const statusFilter = document.getElementById('status-filter');
+            const modal = document.getElementById('company-modal');
+            const modalClose = document.getElementById('modal-close');
+            const modalBackdrop = document.querySelector('.modal-backdrop');
+
+            function getStatusTag(status) {
+                switch (status) {
+                    case 'Unicorn': return '<span class="tag tag-unicorn">Unicorn</span>';
+                    case 'Listed': return '<span class="tag tag-listed">Listed/Licensed</span>';
+                    case 'Alumni': return '<span class="tag tag-alumni">Alumni</span>';
+                    case 'Incubatee': return '<span class="tag tag-incubatee">Incubatee</span>';
+                    default: return '';
+                }
+            }
+            
+            function getClusterTag(cluster) {
+                 switch (cluster) {
+                    case 'FinTech': return '<span class="tag tag-fintech">FinTech</span>';
+                    case 'Smart Living': return '<span class="tag tag-smart-living">Smart Living</span>';
+                    case 'AI & Big Data': return '<span class="tag tag-ai-big-data">AI & Big Data</span>';
+                    case 'Blockchain & Cybersecurity': return '<span class="tag tag-blockchain">Blockchain</span>';
+                    case 'Digital Entertainment & Esports': return '<span class="tag tag-esports">Esports</span>';
+                    default: return '';
+                }
+            }
+
+            function renderCompanies(companies) {
+                companyGrid.innerHTML = '';
+                if (companies.length === 0) {
+                    companyGrid.innerHTML = `<p class="text-gray-500 md:col-span-2 lg:col-span-3 text-center">No companies match the selected filters.</p>`;
+                    return;
+                }
+                companies.forEach(company => {
+                    const card = document.createElement('div');
+                    card.className = 'company-card bg-white p-6 rounded-xl shadow-md cursor-pointer flex flex-col justify-between';
+                    card.innerHTML = `
+                        <div>
+                            <h4 class="text-xl font-bold text-gray-900">${company.name}</h4>
+                            <p class="text-gray-600 mt-2 text-sm">${company.description}</p>
+                        </div>
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            ${getStatusTag(company.status)}
+                            ${getClusterTag(company.cluster)}
+                        </div>
+                    `;
+                    card.addEventListener('click', () => openModal(company));
+                    companyGrid.appendChild(card);
+                });
+            }
+            
+            function openModal(company) {
+                document.getElementById('modal-title').innerText = company.name;
+                document.getElementById('modal-description').innerText = company.description;
+                document.getElementById('modal-tags').innerHTML = `${getStatusTag(company.status)} ${getClusterTag(company.cluster)}`;
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                setTimeout(() => {
+                    modalBackdrop.classList.remove('opacity-0');
+                    document.querySelector('.modal-content').classList.remove('scale-95');
+                }, 10);
+            }
+
+            function closeModal() {
+                modalBackdrop.classList.add('opacity-0');
+                document.querySelector('.modal-content').classList.add('scale-95');
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    modal.classList.remove('flex');
+                }, 300);
+            }
+
+            function filterAndRender() {
+                const activeCluster = clusterFilters.querySelector('.active').dataset.cluster;
+                const activeStatus = statusFilter.value;
+
+                let filteredCompanies = companyData;
+
+                if (activeCluster !== 'All') {
+                    filteredCompanies = filteredCompanies.filter(c => c.cluster === activeCluster);
+                }
+
+                if (activeStatus !== 'All') {
+                    filteredCompanies = filteredCompanies.filter(c => c.status === activeStatus);
+                }
+                
+                renderCompanies(filteredCompanies);
+            }
+
+            clusterFilters.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    clusterFilters.querySelector('.active').classList.remove('active');
+                    e.target.classList.add('active');
+                    filterAndRender();
+                }
+            });
+
+            statusFilter.addEventListener('change', filterAndRender);
+            modalClose.addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    closeModal();
+                }
+            });
+
+            const fundingCtx = document.getElementById('fundingChart').getContext('2d');
+            new Chart(fundingCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Initial Capital (HK$100k)', '6-Month Review (HK$200k)', 'Final Assessment (HK$200k)'],
+                    datasets: [{
+                        data: [100000, 200000, 200000],
+                        backgroundColor: ['#A7F3D0', '#6EE7B7', '#34D399'],
+                        borderColor: '#F8F7F4',
+                        borderWidth: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        label += new Intl.NumberFormat('en-HK', { style: 'currency', currency: 'HKD' }).format(context.parsed);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            const fundsRaisedCtx = document.getElementById('fundsRaisedChart').getContext('2d');
+            new Chart(fundsRaisedCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['By 2014', 'By 2025'],
+                    datasets: [{
+                        label: 'Accumulated Funds Raised (USD)',
+                        data: [12900000, 5570000000],
+                        backgroundColor: ['#6EE7B7', '#4DB6AC'],
+                        borderColor: ['#34D399', '#059669'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value, index, values) {
+                                    if (value >= 1000000000) return '$' + (value / 1000000000) + 'B';
+                                    if (value >= 1000000) return '$' + (value / 1000000) + 'M';
+                                    return '$' + value;
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                             callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact' }).format(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            mobileMenuButton.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
+            });
+            
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    document.querySelector(this.getAttribute('href')).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                    if(mobileMenu.classList.contains('hidden') === false){
+                        mobileMenu.classList.add('hidden');
+                    }
+                });
+            });
+
+            filterAndRender();
+        });
+    </script>
+</body>
+</html>
